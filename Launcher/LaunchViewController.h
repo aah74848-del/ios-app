@@ -2,10 +2,10 @@
 
 /**
  * Programmatic launcher UI:
- *  - nickname field
- *  - PLAY button (writes Documents/samp/settings.ini, then tries to open a streaming client)
- *  - download/status progress bar
- *  - hardcoded target server 134.255.220.191:7777
+ *  - nickname field (persisted on every keystroke; written to Documents/samp/settings.ini)
+ *  - SERVER status line (real RakNet query to 134.255.220.191:7777)
+ *  - GTA STATUS: download-style progress bar
+ *  - PLAY runs a SA-MP-style join sequence, then hands off to a streaming client
  */
 @interface LaunchViewController : UIViewController
 
