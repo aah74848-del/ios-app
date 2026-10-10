@@ -8,7 +8,7 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
 
 @property (nonatomic, strong) UITextField *nicknameField;
 @property (nonatomic, strong) UIButton *playButton;
-@property (nonatomic, strong) UIButton *copyButton;
+@property (nonatomic, strong) UIButton *addressButton;
 @property (nonatomic, strong) UILabel *statusLabel;
 @property (nonatomic, strong) UIProgressView *progressView;
 
@@ -63,11 +63,11 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     self.playButton.layer.cornerRadius = 12.0;
     [self.playButton addTarget:self action:@selector(playTapped:) forControlEvents:UIControlEventTouchUpInside];
 
-    self.copyButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    self.copyButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.copyButton setTitle:@"Copy server address" forState:UIControlStateNormal];
-    [self.copyButton setTitleColor:[UIColor colorWithWhite:0.75 alpha:1.0] forState:UIControlStateNormal];
-    [self.copyButton addTarget:self action:@selector(copyTapped:) forControlEvents:UIControlEventTouchUpInside];
+    self.addressButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.addressButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.addressButton setTitle:@"Copy server address" forState:UIControlStateNormal];
+    [self.addressButton setTitleColor:[UIColor colorWithWhite:0.75 alpha:1.0] forState:UIControlStateNormal];
+    [self.addressButton addTarget:self action:@selector(onCopyAddress:) forControlEvents:UIControlEventTouchUpInside];
 
     self.progressView = [[UIProgressView alloc] initWithProgressViewStyle:UIProgressViewStyleDefault];
     self.progressView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -83,7 +83,7 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     self.statusLabel.textAlignment = NSTextAlignmentCenter;
     self.statusLabel.numberOfLines = 2;
 
-    for (UIView *v in @[title, server, self.nicknameField, self.playButton, self.copyButton, self.progressView, self.statusLabel]) {
+    for (UIView *v in @[title, server, self.nicknameField, self.playButton, self.addressButton, self.progressView, self.statusLabel]) {
         [self.view addSubview:v];
     }
 
@@ -107,8 +107,8 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
         [self.playButton.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
         [self.playButton.heightAnchor constraintEqualToConstant:56],
 
-        [self.copyButton.topAnchor constraintEqualToAnchor:self.playButton.bottomAnchor constant:10],
-        [self.copyButton.centerXAnchor constraintEqualToAnchor:g.centerXAnchor],
+        [self.addressButton.topAnchor constraintEqualToAnchor:self.playButton.bottomAnchor constant:10],
+        [self.addressButton.centerXAnchor constraintEqualToAnchor:g.centerXAnchor],
 
         [self.statusLabel.bottomAnchor constraintEqualToAnchor:self.progressView.topAnchor constant:-10],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
@@ -140,7 +140,7 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     [self attemptStreamingLaunch];
 }
 
-- (void)copyTapped:(UIButton *)sender {
+- (void)onCopyAddress:(UIButton *)sender {
     NSString *server = [NSString stringWithFormat:@"%@:%ld", kServerHost, (long)kServerPort];
     [UIPasteboard generalPasteboard].string = server;
     self.statusLabel.text = [NSString stringWithFormat:@"Copied %@", server];
