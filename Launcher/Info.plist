@@ -32,6 +32,7 @@
 	<array>
 		<string>moonlight</string>
 		<string>steamlink</string>
+		<string>parsec</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

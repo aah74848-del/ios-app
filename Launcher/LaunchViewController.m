@@ -5,12 +5,16 @@
 static NSString * const kServerHost = @"134.255.220.191";
 static const uint16_t kServerPort = 7777;
 static NSString * const kNicknameDefaultsKey = @"samp.nickname";
+static NSString * const kPCHostDefaultsKey = @"samp.pchost";
+static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app/id1000551566";
 
 @interface LaunchViewController () <UITextFieldDelegate>
 
 @property (nonatomic, strong) UITextField *nicknameField;
+@property (nonatomic, strong) UITextField *pcHostField;
 @property (nonatomic, strong) UIButton *playButton;
 @property (nonatomic, strong) UIButton *addressButton;
+@property (nonatomic, strong) UIButton *moonlightButton;
 @property (nonatomic, strong) UIButton *downloadButton;
 @property (nonatomic, strong) UILabel *serverStatusLabel;
 @property (nonatomic, strong) UILabel *gtaStatusLabel;
@@ -28,10 +32,15 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     self.view.backgroundColor = [UIColor colorWithRed:0.06 green:0.07 blue:0.09 alpha:1.0];
     [self buildUI];
 
-    // Restore the saved nickname immediately (persisted across launches).
-    NSString *saved = [[NSUserDefaults standardUserDefaults] stringForKey:kNicknameDefaultsKey];
-    if (saved.length > 0) {
-        self.nicknameField.text = saved;
+    // Restore saved settings (persisted across launches).
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *savedNickname = [defaults stringForKey:kNicknameDefaultsKey];
+    if (savedNickname.length > 0) {
+        self.nicknameField.text = savedNickname;
+    }
+    NSString *savedPCHost = [defaults stringForKey:kPCHostDefaultsKey];
+    if (savedPCHost.length > 0) {
+        self.pcHostField.text = savedPCHost;
     }
 
     [self refreshServerStatus];
@@ -65,23 +74,18 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     self.serverStatusLabel.textAlignment = NSTextAlignmentCenter;
     self.serverStatusLabel.numberOfLines = 2;
 
-    self.nicknameField = [UITextField new];
-    self.nicknameField.translatesAutoresizingMaskIntoConstraints = NO;
-    self.nicknameField.placeholder = @"Nickname";
-    self.nicknameField.textColor = [UIColor whiteColor];
-    self.nicknameField.tintColor = accent;
-    self.nicknameField.autocorrectionType = UITextAutocorrectionTypeNo;
-    self.nicknameField.autocapitalizationType = UITextAutocapitalizationTypeNone;
-    self.nicknameField.returnKeyType = UIReturnKeyDone;
-    self.nicknameField.delegate = self;
-    self.nicknameField.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.08];
-    self.nicknameField.layer.cornerRadius = 10.0;
-    self.nicknameField.leftView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 12, 44)];
-    self.nicknameField.leftViewMode = UITextFieldViewModeAlways;
+    self.nicknameField = [self makeFieldWithPlaceholder:@"Nickname" accent:accent];
     // Persist the nickname as the user types.
     [self.nicknameField addTarget:self
                            action:@selector(onNicknameChanged:)
                  forControlEvents:UIControlEventEditingChanged];
+
+    self.pcHostField = [self makeFieldWithPlaceholder:@"PC host for Moonlight (e.g. 192.168.1.20)" accent:accent];
+    self.pcHostField.keyboardType = UIKeyboardTypeNumbersAndPunctuation;
+    self.pcHostField.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    [self.pcHostField addTarget:self
+                         action:@selector(onPCHostChanged:)
+               forControlEvents:UIControlEventEditingChanged];
 
     self.playButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.playButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -97,6 +101,15 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     [self.addressButton setTitle:@"Copy server address" forState:UIControlStateNormal];
     [self.addressButton setTitleColor:[UIColor colorWithWhite:0.75 alpha:1.0] forState:UIControlStateNormal];
     [self.addressButton addTarget:self action:@selector(onCopyAddress:) forControlEvents:UIControlEventTouchUpInside];
+
+    self.moonlightButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.moonlightButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.moonlightButton setTitle:@"Get / open Moonlight" forState:UIControlStateNormal];
+    [self.moonlightButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    self.moonlightButton.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    self.moonlightButton.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.10];
+    self.moonlightButton.layer.cornerRadius = 10.0;
+    [self.moonlightButton addTarget:self action:@selector(openMoonlightTapped:) forControlEvents:UIControlEventTouchUpInside];
 
     self.downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.downloadButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -128,14 +141,15 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     self.progressView.trackTintColor = [UIColor colorWithWhite:1.0 alpha:0.12];
     self.progressView.progress = 0.0;
 
-    for (UIView *v in @[title, server, self.serverStatusLabel, self.nicknameField, self.playButton,
-                         self.addressButton, self.downloadButton, gtaTitle, self.gtaStatusLabel, self.progressView]) {
+    for (UIView *v in @[title, server, self.serverStatusLabel, self.nicknameField, self.pcHostField,
+                         self.playButton, self.addressButton, self.moonlightButton, self.downloadButton,
+                         gtaTitle, self.gtaStatusLabel, self.progressView]) {
         [self.view addSubview:v];
     }
 
     UILayoutGuide *g = self.view.safeAreaLayoutGuide;
     [NSLayoutConstraint activateConstraints:@[
-        [title.topAnchor constraintEqualToAnchor:g.topAnchor constant:44],
+        [title.topAnchor constraintEqualToAnchor:g.topAnchor constant:36],
         [title.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:24],
         [title.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-24],
 
@@ -147,12 +161,17 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
         [self.serverStatusLabel.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:24],
         [self.serverStatusLabel.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-24],
 
-        [self.nicknameField.topAnchor constraintEqualToAnchor:self.serverStatusLabel.bottomAnchor constant:28],
+        [self.nicknameField.topAnchor constraintEqualToAnchor:self.serverStatusLabel.bottomAnchor constant:22],
         [self.nicknameField.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
         [self.nicknameField.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
         [self.nicknameField.heightAnchor constraintEqualToConstant:46],
 
-        [self.playButton.topAnchor constraintEqualToAnchor:self.nicknameField.bottomAnchor constant:16],
+        [self.pcHostField.topAnchor constraintEqualToAnchor:self.nicknameField.bottomAnchor constant:10],
+        [self.pcHostField.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
+        [self.pcHostField.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
+        [self.pcHostField.heightAnchor constraintEqualToConstant:46],
+
+        [self.playButton.topAnchor constraintEqualToAnchor:self.pcHostField.bottomAnchor constant:16],
         [self.playButton.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
         [self.playButton.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
         [self.playButton.heightAnchor constraintEqualToConstant:56],
@@ -160,12 +179,17 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
         [self.addressButton.topAnchor constraintEqualToAnchor:self.playButton.bottomAnchor constant:8],
         [self.addressButton.centerXAnchor constraintEqualToAnchor:g.centerXAnchor],
 
-        [self.downloadButton.topAnchor constraintEqualToAnchor:self.addressButton.bottomAnchor constant:14],
+        [self.moonlightButton.topAnchor constraintEqualToAnchor:self.addressButton.bottomAnchor constant:14],
+        [self.moonlightButton.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
+        [self.moonlightButton.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
+        [self.moonlightButton.heightAnchor constraintEqualToConstant:46],
+
+        [self.downloadButton.topAnchor constraintEqualToAnchor:self.moonlightButton.bottomAnchor constant:10],
         [self.downloadButton.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
         [self.downloadButton.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
         [self.downloadButton.heightAnchor constraintEqualToConstant:46],
 
-        [gtaTitle.topAnchor constraintEqualToAnchor:self.downloadButton.bottomAnchor constant:26],
+        [gtaTitle.topAnchor constraintEqualToAnchor:self.downloadButton.bottomAnchor constant:24],
         [gtaTitle.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
         [gtaTitle.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
 
@@ -176,31 +200,53 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
         [self.progressView.topAnchor constraintEqualToAnchor:self.gtaStatusLabel.bottomAnchor constant:10],
         [self.progressView.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
         [self.progressView.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
-        [self.progressView.bottomAnchor constraintLessThanOrEqualToAnchor:g.bottomAnchor constant:-24],
+        [self.progressView.bottomAnchor constraintLessThanOrEqualToAnchor:g.bottomAnchor constant:-20],
     ]];
+}
+
+- (UITextField *)makeFieldWithPlaceholder:(NSString *)placeholder accent:(UIColor *)accent {
+    UITextField *field = [UITextField new];
+    field.translatesAutoresizingMaskIntoConstraints = NO;
+    field.placeholder = placeholder;
+    field.textColor = [UIColor whiteColor];
+    field.tintColor = accent;
+    field.autocorrectionType = UITextAutocorrectionTypeNo;
+    field.returnKeyType = UIReturnKeyDone;
+    field.delegate = self;
+    field.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.08];
+    field.layer.cornerRadius = 10.0;
+    field.leftView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 12, 44)];
+    field.leftViewMode = UITextFieldViewModeAlways;
+    return field;
 }
 
 #pragma mark - Actions
 
 - (void)onNicknameChanged:(UITextField *)field {
     // Saved on every keystroke so the username is always persisted.
-    [self persistNickname:[self sanitizedNickname]];
+    [self persistCurrentSettings];
+}
+
+- (void)onPCHostChanged:(UITextField *)field {
+    [self persistCurrentSettings];
 }
 
 - (void)playTapped:(UIButton *)sender {
-    [self.nicknameField resignFirstResponder];
-
-    NSString *name = [self sanitizedNickname];
-    [self persistNickname:name];
+    [self.view endEditing:YES];
+    [self persistCurrentSettings];
 
     self.playButton.enabled = NO;
-    [self runJoinSequenceForNickname:name];
+    [self runJoinSequenceForNickname:[self sanitizedNickname]];
 }
 
 - (void)onCopyAddress:(UIButton *)sender {
     NSString *server = [NSString stringWithFormat:@"%@:%u", kServerHost, (unsigned)kServerPort];
     [UIPasteboard generalPasteboard].string = server;
     self.gtaStatusLabel.text = [NSString stringWithFormat:@"Copied %@", server];
+}
+
+- (void)openMoonlightTapped:(UIButton *)sender {
+    [self openMoonlightAppStore];
 }
 
 - (void)downloadClientTapped:(UIButton *)sender {
@@ -251,7 +297,7 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     [self presentViewController:activity animated:YES completion:nil];
 }
 
-#pragma mark - Nickname persistence
+#pragma mark - Settings persistence
 
 - (NSString *)sanitizedNickname {
     NSString *name = [self.nicknameField.text stringByTrimmingCharactersInSet:
@@ -259,15 +305,24 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     return name.length > 0 ? name : @"Player";
 }
 
-- (void)persistNickname:(NSString *)name {
-    if (name.length == 0) {
-        return;
-    }
-    [[NSUserDefaults standardUserDefaults] setObject:name forKey:kNicknameDefaultsKey];
-    [self writeSettingsIniForNickname:name];
+- (NSString *)sanitizedPCHost {
+    NSString *host = [self.pcHostField.text stringByTrimmingCharactersInSet:
+                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return host.length > 0 ? host : @"";
 }
 
-- (NSString *)writeSettingsIniForNickname:(NSString *)name {
+- (void)persistCurrentSettings {
+    NSString *name = [self sanitizedNickname];
+    NSString *pcHost = [self sanitizedPCHost];
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:name forKey:kNicknameDefaultsKey];
+    [defaults setObject:pcHost forKey:kPCHostDefaultsKey];
+
+    [self writeSettingsIniForNickname:name pcHost:pcHost];
+}
+
+- (NSString *)writeSettingsIniForNickname:(NSString *)name pcHost:(NSString *)pcHost {
     NSArray<NSString *> *dirs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *docs = dirs.firstObject;
     NSString *sampDir = [docs stringByAppendingPathComponent:@"samp"];
@@ -278,8 +333,8 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
                                                    error:nil];
 
     NSString *iniPath = [sampDir stringByAppendingPathComponent:@"settings.ini"];
-    NSString *body = [NSString stringWithFormat:@"[client]\nname=%@\nhost=%@\nport=%u\n",
-                      name, kServerHost, (unsigned)kServerPort];
+    NSString *body = [NSString stringWithFormat:@"[client]\nname=%@\nhost=%@\nport=%u\n[stream]\npc=%@\n",
+                      name, kServerHost, (unsigned)kServerPort, pcHost];
     [body writeToFile:iniPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
     return iniPath;
 }
@@ -355,7 +410,7 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
                                dispatch_get_main_queue(), ^{
                     __strong typeof(weakSelf) self2 = weakSelf;
                     if (!self2 || token != self2.sequenceToken) { return; }
-                    self2.gtaStatusLabel.text = @"Opening streaming client…";
+                    self2.gtaStatusLabel.text = @"Ready — handing off to your stream";
                     [self2 finishJoin];
                 });
             });
@@ -379,9 +434,13 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
 #pragma mark - Streaming handoff
 
 - (void)attemptStreamingLaunch {
-    // Moonlight registers no URL scheme, so this is best-effort. If any candidate is
-    // installed, jump to it; otherwise show the manual steps.
-    NSArray<NSString *> *candidates = @[@"moonlight://", @"steamlink://"];
+    // Always make the SA-MP address available so it can be pasted in-game.
+    NSString *server = [NSString stringWithFormat:@"%@:%u", kServerHost, (unsigned)kServerPort];
+    [UIPasteboard generalPasteboard].string = server;
+
+    // Best-effort: some streaming apps register a URL scheme. Moonlight (official)
+    // does not, so this will usually fall through to the instructions.
+    NSArray<NSString *> *candidates = @[@"moonlight://", @"steamlink://", @"parsec://"];
     for (NSString *scheme in candidates) {
         NSURL *url = [NSURL URLWithString:scheme];
         if (url && [[UIApplication sharedApplication] canOpenURL:url]) {
@@ -395,26 +454,41 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
 
 - (void)showStreamingInstructions {
     NSString *server = [NSString stringWithFormat:@"%@:%u", kServerHost, (unsigned)kServerPort];
-    [UIPasteboard generalPasteboard].string = server;
+    NSString *pcHost = [self sanitizedPCHost];
+    NSString *pcLine = pcHost.length > 0
+        ? [NSString stringWithFormat:@"1. Open Moonlight and connect to your PC at %@.", pcHost]
+        : @"1. Open Moonlight and connect to your gaming PC.";
 
     NSString *message = [NSString stringWithFormat:
-        @"1. Open Moonlight and connect to your gaming PC.\n"
-        @"2. Launch GTA: San Andreas on the PC.\n"
-        @"3. In-game, join the server:\n%@\n\n"
-        @"The address was copied to your clipboard.", server];
+        @"%@\n"
+        @"2. On the PC, launch GTA: San Andreas (v1.00) with SA-MP.\n"
+        @"3. In-game, join the server below (already copied):\n%@\n\n"
+        @"Moonlight has no link we can auto-open, so this last tap is manual.",
+        pcLine, server];
 
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Ready to play"
                                                                   message:message
                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Open Moonlight" style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction *action) {
+        [self openMoonlightAppStore];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)openMoonlightAppStore {
+    NSURL *url = [NSURL URLWithString:kMoonlightAppStoreURL];
+    if (url) {
+        [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+    }
 }
 
 #pragma mark - UITextFieldDelegate
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     [textField resignFirstResponder];
-    [self persistNickname:[self sanitizedNickname]];
+    [self persistCurrentSettings];
     return YES;
 }
 
