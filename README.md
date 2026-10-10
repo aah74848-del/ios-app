@@ -18,6 +18,11 @@ A minimal native launcher for the KurdUnity SA-MP setup, built to be compiled
 - **GTA STATUS**: a download-style progress bar that walks through load phases.
 - **PLAY** runs a SA-MP-style join sequence (`Connecting → Joining as <nick> →
   Logged in`), then hands off to a streaming client (Moonlight / Steam Link).
+- **Download SA-MP client (PC)**: a real download of the free, official
+  `sa-mp-0.3.7-R5-2-MP` installer with a live progress bar. It tries several
+  public mirrors, saves to `Documents/KurdUnity/`, and opens a share sheet so the
+  installer can be moved to the player's Windows PC. (It's a Windows `.exe`; iOS
+  cannot run it.)
 - Hardcoded server: `134.255.220.191:7777`.
 
 > Playback note: this launcher does **not** run SA-MP itself. On a non-jailbroken

@@ -1,5 +1,6 @@
 #import "LaunchViewController.h"
 #import "SAMPQuery.h"
+#import "SAMPDownloader.h"
 
 static NSString * const kServerHost = @"134.255.220.191";
 static const uint16_t kServerPort = 7777;
@@ -10,6 +11,7 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
 @property (nonatomic, strong) UITextField *nicknameField;
 @property (nonatomic, strong) UIButton *playButton;
 @property (nonatomic, strong) UIButton *addressButton;
+@property (nonatomic, strong) UIButton *downloadButton;
 @property (nonatomic, strong) UILabel *serverStatusLabel;
 @property (nonatomic, strong) UILabel *gtaStatusLabel;
 @property (nonatomic, strong) UIProgressView *progressView;
@@ -96,6 +98,15 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     [self.addressButton setTitleColor:[UIColor colorWithWhite:0.75 alpha:1.0] forState:UIControlStateNormal];
     [self.addressButton addTarget:self action:@selector(onCopyAddress:) forControlEvents:UIControlEventTouchUpInside];
 
+    self.downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.downloadButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.downloadButton setTitle:@"Download SA-MP client (for PC)" forState:UIControlStateNormal];
+    [self.downloadButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    self.downloadButton.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    self.downloadButton.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.10];
+    self.downloadButton.layer.cornerRadius = 10.0;
+    [self.downloadButton addTarget:self action:@selector(downloadClientTapped:) forControlEvents:UIControlEventTouchUpInside];
+
     UILabel *gtaTitle = [UILabel new];
     gtaTitle.translatesAutoresizingMaskIntoConstraints = NO;
     gtaTitle.text = @"GTA STATUS";
@@ -118,7 +129,7 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     self.progressView.progress = 0.0;
 
     for (UIView *v in @[title, server, self.serverStatusLabel, self.nicknameField, self.playButton,
-                         self.addressButton, gtaTitle, self.gtaStatusLabel, self.progressView]) {
+                         self.addressButton, self.downloadButton, gtaTitle, self.gtaStatusLabel, self.progressView]) {
         [self.view addSubview:v];
     }
 
@@ -149,7 +160,12 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
         [self.addressButton.topAnchor constraintEqualToAnchor:self.playButton.bottomAnchor constant:8],
         [self.addressButton.centerXAnchor constraintEqualToAnchor:g.centerXAnchor],
 
-        [gtaTitle.topAnchor constraintEqualToAnchor:self.addressButton.bottomAnchor constant:34],
+        [self.downloadButton.topAnchor constraintEqualToAnchor:self.addressButton.bottomAnchor constant:14],
+        [self.downloadButton.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
+        [self.downloadButton.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
+        [self.downloadButton.heightAnchor constraintEqualToConstant:46],
+
+        [gtaTitle.topAnchor constraintEqualToAnchor:self.downloadButton.bottomAnchor constant:26],
         [gtaTitle.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
         [gtaTitle.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
 
@@ -185,6 +201,54 @@ static NSString * const kNicknameDefaultsKey = @"samp.nickname";
     NSString *server = [NSString stringWithFormat:@"%@:%u", kServerHost, (unsigned)kServerPort];
     [UIPasteboard generalPasteboard].string = server;
     self.gtaStatusLabel.text = [NSString stringWithFormat:@"Copied %@", server];
+}
+
+- (void)downloadClientTapped:(UIButton *)sender {
+    // If a previous staged animation is running, cancel it.
+    self.sequenceToken += 1;
+    self.downloadButton.enabled = NO;
+    [self.progressView setProgress:0.0 animated:NO];
+    self.gtaStatusLabel.text = @"Connecting to mirror…";
+
+    __weak typeof(self) weakSelf = self;
+    [[SAMPDownloader shared] downloadWithProgress:^(int64_t bytesWritten, int64_t totalBytes) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) { return; }
+        double megabytesWritten = (double)bytesWritten / 1048576.0;
+        if (totalBytes > 0) {
+            double fraction = (double)bytesWritten / (double)totalBytes;
+            [self.progressView setProgress:(float)fraction animated:NO];
+            self.gtaStatusLabel.text = [NSString stringWithFormat:
+                                        @"Downloading SA-MP client… %.0f%% (%.1f / %.1f MB)",
+                                        fraction * 100.0, megabytesWritten, (double)totalBytes / 1048576.0];
+        } else {
+            self.gtaStatusLabel.text = [NSString stringWithFormat:
+                                        @"Downloading SA-MP client… %.1f MB", megabytesWritten];
+        }
+    } completion:^(NSURL *fileURL, NSError *error) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) { return; }
+        self.downloadButton.enabled = YES;
+        if (fileURL != nil) {
+            [self.progressView setProgress:1.0 animated:YES];
+            self.gtaStatusLabel.text = @"SA-MP client saved — send it to your PC";
+            [self presentShareSheetForURL:fileURL];
+        } else if (error != nil && error.code == NSURLErrorCancelled) {
+            self.gtaStatusLabel.text = @"Download cancelled";
+        } else {
+            self.gtaStatusLabel.text = [NSString stringWithFormat:@"Download failed: %@",
+                                        error.localizedDescription ?: @"unknown error"];
+        }
+    }];
+}
+
+- (void)presentShareSheetForURL:(NSURL *)fileURL {
+    UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[fileURL]
+                                                                          applicationActivities:nil];
+    // iPad/regular-size safety.
+    activity.popoverPresentationController.sourceView = self.downloadButton;
+    activity.popoverPresentationController.sourceRect = self.downloadButton.bounds;
+    [self presentViewController:activity animated:YES completion:nil];
 }
 
 #pragma mark - Nickname persistence
