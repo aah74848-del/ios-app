@@ -2,6 +2,5 @@ build/
 Payload/
 *.ipa
 *.xcodeproj
-Launcher/Info.plist
 xcuserdata/
 .DS_Store

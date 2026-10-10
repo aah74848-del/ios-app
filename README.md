@@ -49,7 +49,8 @@ bash build-ipa.sh
 
 ## Files
 ```
-project.yml                       XcodeGen spec (app target + Info.plist properties)
+project.yml                       XcodeGen spec (app target, INFOPLIST_FILE)
+Launcher/Info.plist               committed app Info.plist
 Launcher/main.m                   entry point
 Launcher/AppDelegate.h/.m         window + root VC
 Launcher/LaunchViewController.h/.m  the launcher UI + settings.ini writer + handoff

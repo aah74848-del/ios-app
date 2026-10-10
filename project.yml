@@ -1,5 +1,9 @@
 # XcodeGen project spec — the .xcodeproj is generated from this at build time,
 # so no Mac and no committed project file are needed.
+#
+# NOTE: we intentionally do NOT use XcodeGen's `info:` generation. It collides with
+# the `Launcher/` source directory ("file named Launcher already exists"). Instead a
+# static Launcher/Info.plist is committed and wired up via INFOPLIST_FILE.
 name: KurdUnityLauncher
 options:
   bundleIdPrefix: com.kurdunity
@@ -14,28 +18,18 @@ targets:
     platform: iOS
     sources:
       - path: Launcher
+        excludes:
+          - Info.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurdunity.launcher
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_FILE: Launcher/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
         # Build unsigned so ESign can re-sign with your certificate.
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGN_IDENTITY: ""
         CLANG_ENABLE_MODULES: YES
-    info:
-      path: Launcher/Info.plist
-      properties:
-        CFBundleDisplayName: KurdUnity Launcher
-        CFBundleShortVersionString: "1.0"
-        LSRequiresIPhoneOS: true
-        UILaunchScreen: {}
-        UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
-        LSApplicationQueriesSchemes:
-          - moonlight
-          - steamlink
-        NSAppTransportSecurity:
-          NSAllowsArbitraryLoads: true
