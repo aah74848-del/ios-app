@@ -43,5 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: KurdUnityLauncher-simulator
-          path: KurdUnityLauncher-simulator.zip
+          path: |
+            KurdUnityLauncher-simulator.zip
+            KurdUnityLauncher-simulator.tar.gz
           if-no-files-found: error

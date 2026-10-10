@@ -41,7 +41,12 @@ if [ ! -d "$APP" ]; then
 fi
 
 echo "==> Packaging simulator .app"
-rm -f "${SCHEME}-simulator.zip"
+rm -f "${SCHEME}-simulator.zip" "${SCHEME}-simulator.tar.gz"
+# Zip with the .app at the archive root (Appetize requirement).
 ditto -c -k --keepParent "$APP" "${SCHEME}-simulator.zip"
+# tar.gz fallback (also accepted by Appetize).
+( cd "$(dirname "$APP")" && COPYFILE_DISABLE=1 tar -czf "${ROOT}/${SCHEME}-simulator.tar.gz" "${SCHEME}.app" )
 
-echo "==> Done: ${ROOT}/${SCHEME}-simulator.zip"
+echo "==> Done:"
+echo "    ${ROOT}/${SCHEME}-simulator.zip"
+echo "    ${ROOT}/${SCHEME}-simulator.tar.gz"
