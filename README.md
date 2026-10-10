@@ -5,6 +5,8 @@ A minimal native launcher for the KurdUnity SA-MP setup, built to be compiled
 
 - Objective-C / UIKit, programmatic UI (no storyboard, no Swift).
 - Nickname field, **PC host** field, **PLAY** button.
+- **Host check**: the launcher opens a real TCP connection to the PC's Sunshine
+  port (`47989`) and shows whether the streaming host is reachable (`HostProbe`).
 - **Nickname and PC host are saved continuously** (on every keystroke) to
   `NSUserDefaults` and to `Documents/samp/settings.ini`:
   ```ini
@@ -79,6 +81,7 @@ Launcher/main.m                   entry point
 Launcher/AppDelegate.h/.m         window + root VC
 Launcher/LaunchViewController.h/.m  the launcher UI + settings.ini writer + handoff
 Launcher/SAMPQuery.h/.m           real RakNet server status query
+Launcher/HostProbe.h/.m           real TCP probe for the streaming PC (port 47989)
 Launcher/SAMPDownloader.h/.m      real SA-MP client downloader (mirrors + progress)
 build-ipa.sh                      macOS/CI build script -> unsigned .ipa
 .github/workflows/build-ipa.yml   cloud-Mac build

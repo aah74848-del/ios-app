@@ -1,9 +1,11 @@
 #import "LaunchViewController.h"
 #import "SAMPQuery.h"
 #import "SAMPDownloader.h"
+#import "HostProbe.h"
 
 static NSString * const kServerHost = @"134.255.220.191";
 static const uint16_t kServerPort = 7777;
+static const uint16_t kGameStreamPort = 47989; // Sunshine / NVIDIA GameStream HTTP port
 static NSString * const kNicknameDefaultsKey = @"samp.nickname";
 static NSString * const kPCHostDefaultsKey = @"samp.pchost";
 static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app/id1000551566";
@@ -12,6 +14,7 @@ static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app
 
 @property (nonatomic, strong) UITextField *nicknameField;
 @property (nonatomic, strong) UITextField *pcHostField;
+@property (nonatomic, strong) UILabel *hostStatusLabel;
 @property (nonatomic, strong) UIButton *playButton;
 @property (nonatomic, strong) UIButton *addressButton;
 @property (nonatomic, strong) UIButton *moonlightButton;
@@ -44,6 +47,7 @@ static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app
     }
 
     [self refreshServerStatus];
+    [self refreshHostStatus];
     [self runGTAStatusSequence];
 }
 
@@ -86,6 +90,17 @@ static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app
     [self.pcHostField addTarget:self
                          action:@selector(onPCHostChanged:)
                forControlEvents:UIControlEventEditingChanged];
+    [self.pcHostField addTarget:self
+                         action:@selector(onPCHostDone:)
+               forControlEvents:UIControlEventEditingDidEnd];
+
+    self.hostStatusLabel = [UILabel new];
+    self.hostStatusLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    self.hostStatusLabel.text = @"Host: add your PC's IP to check it";
+    self.hostStatusLabel.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
+    self.hostStatusLabel.textColor = [UIColor colorWithWhite:0.55 alpha:1.0];
+    self.hostStatusLabel.textAlignment = NSTextAlignmentCenter;
+    self.hostStatusLabel.numberOfLines = 2;
 
     self.playButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.playButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -142,8 +157,8 @@ static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app
     self.progressView.progress = 0.0;
 
     for (UIView *v in @[title, server, self.serverStatusLabel, self.nicknameField, self.pcHostField,
-                         self.playButton, self.addressButton, self.moonlightButton, self.downloadButton,
-                         gtaTitle, self.gtaStatusLabel, self.progressView]) {
+                         self.hostStatusLabel, self.playButton, self.addressButton, self.moonlightButton,
+                         self.downloadButton, gtaTitle, self.gtaStatusLabel, self.progressView]) {
         [self.view addSubview:v];
     }
 
@@ -171,7 +186,11 @@ static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app
         [self.pcHostField.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
         [self.pcHostField.heightAnchor constraintEqualToConstant:46],
 
-        [self.playButton.topAnchor constraintEqualToAnchor:self.pcHostField.bottomAnchor constant:16],
+        [self.hostStatusLabel.topAnchor constraintEqualToAnchor:self.pcHostField.bottomAnchor constant:6],
+        [self.hostStatusLabel.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
+        [self.hostStatusLabel.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
+
+        [self.playButton.topAnchor constraintEqualToAnchor:self.hostStatusLabel.bottomAnchor constant:14],
         [self.playButton.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:28],
         [self.playButton.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-28],
         [self.playButton.heightAnchor constraintEqualToConstant:56],
@@ -231,9 +250,15 @@ static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app
     [self persistCurrentSettings];
 }
 
+- (void)onPCHostDone:(UITextField *)field {
+    [self persistCurrentSettings];
+    [self refreshHostStatus];
+}
+
 - (void)playTapped:(UIButton *)sender {
     [self.view endEditing:YES];
     [self persistCurrentSettings];
+    [self refreshHostStatus];
 
     self.playButton.enabled = NO;
     [self runJoinSequenceForNickname:[self sanitizedNickname]];
@@ -351,6 +376,29 @@ static NSString * const kMoonlightAppStoreURL = @"itms-apps://apps.apple.com/app
             ? [NSString stringWithFormat:@"Server: %@ (%ld/%ld)",
                hostname.length ? hostname : @"online", (long)players, (long)maxPlayers]
             : [NSString stringWithFormat:@"Server: no response from %@:%u", kServerHost, (unsigned)kServerPort];
+    }];
+}
+
+#pragma mark - Host (streaming PC) status
+
+- (void)refreshHostStatus {
+    NSString *host = [self sanitizedPCHost];
+    if (host.length == 0) {
+        self.hostStatusLabel.text = @"Host: add your PC's IP to check it";
+        return;
+    }
+
+    self.hostStatusLabel.text = [NSString stringWithFormat:@"Host: checking %@…", host];
+    __weak typeof(self) weakSelf = self;
+    [HostProbe probeHost:host port:kGameStreamPort timeout:2.0
+              completion:^(BOOL reachable) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) { return; }
+        self.hostStatusLabel.text = reachable
+            ? [NSString stringWithFormat:@"Host: online — Sunshine reachable (%@:%u)",
+               host, (unsigned)kGameStreamPort]
+            : [NSString stringWithFormat:@"Host: not reachable (%@:%u) — is the PC on?",
+               host, (unsigned)kGameStreamPort];
     }];
 }
 
