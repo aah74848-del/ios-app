@@ -3,4 +3,5 @@ Payload/
 *.ipa
 *.xcodeproj
 xcuserdata/
+*.zip
 .DS_Store
