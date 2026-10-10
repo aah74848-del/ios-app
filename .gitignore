@@ -1,4 +1,5 @@
 build/
+build-sim/
 Payload/
 *.ipa
 *.xcodeproj

@@ -26,3 +26,22 @@ jobs:
           name: KurdUnityLauncher-ipa
           path: KurdUnityLauncher.ipa
           if-no-files-found: error
+
+  simulator:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build Simulator bundle
+        run: bash build-sim.sh
+
+      - name: Upload simulator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KurdUnityLauncher-simulator
+          path: KurdUnityLauncher-simulator.zip
+          if-no-files-found: error
